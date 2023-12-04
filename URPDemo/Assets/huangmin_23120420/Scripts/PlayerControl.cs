@@ -47,7 +47,8 @@ public class PlayerControl : MonoBehaviour
                 CurrentTime = 0;
                 if (this._planeControl.Progress == 0)
                 {
-                    this.ToCircle();
+                   
+                    this.ToCircle(false);
                 }
                 else if (Math.Abs(this._planeControl.Progress - 1) < 0.001f)
                 {
@@ -58,25 +59,24 @@ public class PlayerControl : MonoBehaviour
         }
     }
 
-    private void ToCircle()
+    private void ToCircle(bool needBtnAnim=true)
     {
         this.btn.interactable = false;
         state = 1;
-        DOTween.To(() => btn.transform.localScale, scale => { btn.transform.localScale = scale; },
-            new Vector3(0.8f, 0.8f, 0.8f), 0.2f);
-        var tw = DOTween.To(() => _btnImg.color.a, al =>
+     
+        if (needBtnAnim)
         {
-            var col = _btnImg.color;
-            col.a = al;
-            _btnImg.color = col;
-            for (var i = 0; i < _texts.Length; i++)
-            {
-                var colText = _texts[i].color;
-                colText.a = al;
-                _texts[i].color = colText;
-            }
-        }, 0f, 0.5f);
+            DOTween.To(() => btn.transform.localScale, scale => { btn.transform.localScale = scale; },
+                new Vector3(0.8f, 0.8f, 0.8f), 0.2f);
 
+            DOTween.To(() => _btnImg.color.a, al=> SetBtnAlpha(al), 0f, 0.5f);
+        }
+        else
+        {
+            SetBtnAlpha(0);
+        }
+      
+        
         var planeTw = DOTween.To(() => this._planeControl.Progress, f => { this._planeControl.Progress = f; }, 1f, 2)
             .SetEase(Ease.Linear);
 
@@ -85,6 +85,19 @@ public class PlayerControl : MonoBehaviour
             CurrentTime = 3;
             state = 0;
         };
+    }
+
+    private void SetBtnAlpha(float al)
+    {
+        var col = _btnImg.color;
+        col.a = al;
+        _btnImg.color = col;
+        for (var i = 0; i < _texts.Length; i++)
+        {
+            var colText = _texts[i].color;
+            colText.a = al;
+            _texts[i].color = colText;
+        }
     }
 
     private void ToPlane()
@@ -101,6 +114,7 @@ public class PlayerControl : MonoBehaviour
 
     private void ShowBtn()
     {
+        this.btn.transform.localScale=Vector3.one;
         var tw = DOTween.To(() => _btnImg.color.a, al =>
         {
             var col = _btnImg.color;
