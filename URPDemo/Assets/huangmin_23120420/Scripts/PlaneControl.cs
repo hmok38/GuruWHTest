@@ -9,15 +9,17 @@ using UnityEngine;
 public class PlaneControl : MonoBehaviour
 {
     private float _progress;
-    private Mesh _mesh;
-    private List<Vector3> _orgVertices = new List<Vector3>();
+    private List<Vector3> _xOrigVertices = new List<Vector3>();
+    private List<Vector3> _zOrigVertices = new List<Vector3>();
     private float _radius;
     private Vector3 _center;
     public string RollAxis = "x";
     [SerializeField] private Collider xCollide;
     [SerializeField] private Collider zCollide;
     [SerializeField] private Collider planeCollider;
-    private List<Vector3> tempList;
+    private List<Vector3> _tempList;
+    private Mesh _xMesh, _zMesh;
+    private Transform _xPlane, _zPlane;
 
     public float Progress
     {
@@ -34,10 +36,14 @@ public class PlaneControl : MonoBehaviour
 
     void Start()
     {
-        _mesh = this.GetComponent<MeshFilter>().mesh;
+        _xPlane = this.transform.Find("XPlane");
+        _xMesh = _xPlane.GetComponent<MeshFilter>().mesh;
+        _zPlane = this.transform.Find("ZPlane");
+        _zMesh = _zPlane.GetComponent<MeshFilter>().mesh;
         _radius = 2f / Mathf.PI / 2;
-        _mesh.GetVertices(_orgVertices);
-        tempList = new List<Vector3>(_orgVertices.Count);
+        _xMesh.GetVertices(_xOrigVertices);
+        _zMesh.GetVertices(_zOrigVertices);
+        _tempList = new List<Vector3>(_xOrigVertices.Count);
         SetCollider(CheckBeX());
     }
 
@@ -50,7 +56,7 @@ public class PlaneControl : MonoBehaviour
 
     private void GetCenter(int step, bool beX)
     {
-        var centerV = (step - 50) * 2 / 100f;
+        var centerV = step / 360f * 2 - 1;
         _center = beX ? new Vector3(centerV, _radius, 0) : new Vector3(0, _radius, centerV);
     }
 
@@ -66,13 +72,23 @@ public class PlaneControl : MonoBehaviour
 
     private void EditMesh()
     {
-        int stepInde = Mathf.FloorToInt(_progress * 100);
+        Mesh curretnMesh = _zMesh;
+        List<Vector3> origList = _zOrigVertices;
+        int stepInde = Mathf.FloorToInt(_progress * 360); //0-360
         var beX = this.CheckBeX();
-        GetCenter(stepInde, beX);
-        tempList.Clear();
-        for (int i = 0; i < _orgVertices.Count; i++)
+        if (beX)
         {
-            var vert = _orgVertices[i];
+            curretnMesh = _xMesh;
+            origList = _xOrigVertices;
+        }
+
+        _zPlane.gameObject.SetActive(!beX);
+        _xPlane.gameObject.SetActive(beX);
+        GetCenter(stepInde, beX);
+        _tempList.Clear();
+        for (int i = 0; i < origList.Count; i++)
+        {
+            var vert = origList[i];
             var index = GetVerticesIndex(vert, beX);
             var beEdit = GetVerticesPos(_progress, index, beX, out Vector3 newPos);
             if (beEdit)
@@ -83,28 +99,30 @@ public class PlaneControl : MonoBehaviour
 
                     newPos.x = vert.x;
 
-                tempList.Add(newPos);
+                _tempList.Add(newPos);
             }
             else
             {
-                tempList.Add(vert);
+                _tempList.Add(vert);
             }
         }
 
-        _mesh.SetVertices(tempList);
+        curretnMesh.SetVertices(_tempList);
         SetCollider(beX);
     }
 
     private int GetVerticesIndex(Vector3 origPos, bool beX)
     {
-        return Mathf.FloorToInt((beX ? origPos.x : origPos.z) * 100) / 2 + 50;
+        var length = 2f / 360;
+        return Mathf.FloorToInt(((beX ? origPos.x : origPos.z) + 1) / length);
     }
 
     private bool GetVerticesPos(float progress, int index, bool beX, out Vector3 pos)
     {
         var pro = Mathf.Clamp(progress, 0, 1);
 
-        int stepInde = Mathf.FloorToInt(pro * 100);
+        int stepInde = Mathf.FloorToInt(progress * 360);
+        ;
 
         if (index > stepInde)
         {
@@ -112,13 +130,12 @@ public class PlaneControl : MonoBehaviour
             return false;
         }
 
-        //100份
-        var anglePerStep = 360f / 100;
+
+        var anglePerStep = 360f / 360;
 
         var angle = (stepInde - index) * anglePerStep;
         //0度轴设为向下 
         var dirZero = Vector3.down * _radius;
-        //半径为
 
         var matrix = GetRotationMatrix(beX, angle);
         var dir = matrix * dirZero;
